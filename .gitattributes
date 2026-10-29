@@ -1,0 +1,4 @@
+# Preserve byte-identical third-party fixtures and raw scientific outputs.
+tests/fixtures/external/* -whitespace
+results/**/*.pdbqt -whitespace
+results/**/*.log -whitespace

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "assessment_date": "2026-10-28",
+  "scientific_purpose_complete": false,
+  "gates": [
+    {"id": "reference_quality", "status": "pending", "requirement": "Independent assembly, chemical graph, atom map and local structural reference checks for all eligible cases"},
+    {"id": "development_validation", "status": "in_progress", "requirement": "Analytic metric controls plus AAV9 and six unrelated nonviral development cases, including linked glycans"},
+    {"id": "confirmatory_eligibility", "status": "pending", "requirement": "Frozen eligible families, leakage audit, precision target, independent tested specificity labels"},
+    {"id": "confirmatory_execution", "status": "pending", "requirement": "Paired information, conformation and assembly comparisons, failure denominators, family-aware uncertainty"},
+    {"id": "independent_reproduction", "status": "pending", "requirement": "Independent end-to-end replay from archived sources and raw outputs"}
+  ],
+  "interpretation": "Development oracle redocking can validate implementation. It cannot establish blind site recovery, molecular specificity, or universal docking reliability."
+}

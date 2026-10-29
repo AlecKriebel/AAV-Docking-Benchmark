@@ -218,3 +218,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Recreated from frozen manifests; retained scientific outputs are committed explicitly.
+/data/raw/
+/data/processed/
+/tools/vina-1.2.7
