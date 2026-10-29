@@ -1,0 +1,35 @@
+open data/trimmed-aav9.pdb
+surf
+hide solvent
+color protein #bdbdde
+color ligand magenta
+
+
+color name color_pocket1 #5c93e6
+color name color_pocket2 #7d47b3
+color name color_pocket3 #e65cae
+color name color_pocket4 #b36847
+
+name pocket1_atoms @@serial_number=2895 @@serial_number=2897 @@serial_number=2904 @@serial_number=2901 @@serial_number=584 @@serial_number=2912 @@serial_number=869 @@serial_number=865 @@serial_number=599 @@serial_number=608 @@serial_number=611 @@serial_number=613 @@serial_number=3073 @@serial_number=605 @@serial_number=606 @@serial_number=713 @@serial_number=712 @@serial_number=714 @@serial_number=2893 @@serial_number=3092 @@serial_number=3093 @@serial_number=874
+color pocket1_atoms color_pocket1
+
+name pocket2_atoms @@serial_number=1968 @@serial_number=1969 @@serial_number=1971 @@serial_number=1974 @@serial_number=1976 @@serial_number=1962 @@serial_number=2237 @@serial_number=2228 @@serial_number=2232 @@serial_number=2075 @@serial_number=2076 @@serial_number=2077 @@serial_number=366 @@serial_number=367 @@serial_number=167 @@serial_number=169 @@serial_number=171 @@serial_number=347 @@serial_number=175 @@serial_number=178 @@serial_number=1947 @@serial_number=186
+color pocket2_atoms color_pocket2
+
+name pocket3_atoms @@serial_number=3331 @@serial_number=3332 @@serial_number=3334 @@serial_number=3337 @@serial_number=3339 @@serial_number=3439 @@serial_number=3440 @@serial_number=1730 @@serial_number=1729 @@serial_number=3438 @@serial_number=1710 @@serial_number=3595 @@serial_number=1541 @@serial_number=1530 @@serial_number=1538 @@serial_number=1532 @@serial_number=1534 @@serial_number=3325 @@serial_number=3591 @@serial_number=1549 @@serial_number=3310 @@serial_number=3600
+color pocket3_atoms color_pocket3
+
+name pocket4_atoms @@serial_number=1324 @@serial_number=1325 @@serial_number=1322 @@serial_number=1328 @@serial_number=1326 @@serial_number=4048 @@serial_number=1336 @@serial_number=4054 @@serial_number=4062 @@serial_number=2688 @@serial_number=2687 @@serial_number=2689 @@serial_number=2699 @@serial_number=2685 @@serial_number=2691 @@serial_number=4050 @@serial_number=4051 @@serial_number=4052
+color pocket4_atoms color_pocket4
+
+
+
+open data/trimmed-aav9.pdb_points.pdb.gz
+color by bfactor #2 palette lime:red  range 0,0.7
+
+
+set bgcolor #242455
+transparency 35
+graphics silhouettes true
+lighting full
+view
