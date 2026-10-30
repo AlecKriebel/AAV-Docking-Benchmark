@@ -20,14 +20,16 @@ python3.11 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e '.[test]'
 python -m pytest -q
-python -m aav_benchmark replay aav9
+python -m aav_benchmark replay aav9 --output results/replay/aav9
 ```
 
 The replay restores checksum-pinned 7MTZ/7MT0/GAL sources, prepares receptors
 and an independently generated ligand, installs the official Vina 1.2.7 binary
 for macOS/Linux ARM64 or x86-64, runs three frozen seeds in four conditions,
 then writes raw poses, logs, run manifests, pose metrics and summaries under
-`results/development/aav9/`. Windows binaries are not currently supported.
+the requested output folder. Committed evidence lives under
+`results/development/aav9/`; use a fresh replay folder to preserve it. Windows
+binaries are not currently supported.
 Stages can be run separately with `fetch`, `prepare aav9`, `dock aav9`, and
 `analyze aav9`. Use `dock aav9 --resume` to reuse only verified completed runs.
 Changed inputs or configurations require a new output directory.
@@ -42,11 +44,11 @@ copies are independent biological observations.
 ## Released examples and exploratory assay ranking
 
 ```sh
-python -m aav_benchmark replay 154L
-python -m aav_benchmark replay 1KJL
+python -m aav_benchmark replay 154L --output results/replay/154l
+python -m aav_benchmark replay 1KJL --output results/replay/1KJL
 python -m aav_benchmark panel prepare
-python -m aav_benchmark panel dock
-python -m aav_benchmark panel analyze
+python -m aav_benchmark panel dock --results-root results/replay
+python -m aav_benchmark panel analyze --results-root results/replay
 ```
 
 The external development inventory is frozen in
@@ -81,6 +83,22 @@ For a portable preparation bundle use `archive aav9`; `restore aav9` restores it
 without overwriting changed inputs. Run `analyze` against archived preparations
 to regenerate tables from raw poses. `status --require-complete` exits nonzero
 while any scientific evidence gate remains unfinished.
+
+Recompute all published structural and assay tables without rerunning docking:
+
+```sh
+python scripts/verify_archived_results.py
+python scripts/regenerate_report.py --check
+```
+
+The verifier restores archived preparation into temporary folders and compares
+freshly computed tables byte for byte. The generated
+[development report](docs/DEVELOPMENT_RESULTS.md) includes the failure denominator,
+native scoring controls, raw-data hashes and limitations. The
+[independent replay](docs/INDEPENDENT_REPRODUCTION.md) and
+[clean-environment replay](docs/CLEAN_ENVIRONMENT_REPLAY.md) are implementation
+checks on the same host. [Method coverage](docs/METHOD_COVERAGE.md) identifies
+the comparisons still needed for the full scientific study.
 
 Legacy trimmed structures and pocket outputs remain historical artifacts with
 unverified coordinate/provenance mappings. They are not blind benchmark evidence.

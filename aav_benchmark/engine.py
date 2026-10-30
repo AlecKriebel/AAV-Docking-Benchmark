@@ -80,10 +80,13 @@ def receptor_atoms(path):
     return keys, np.asarray(coordinates)
 
 
-def dock(prepared_dir, output_dir, executable, config_path, *, resume=False):
+def dock(prepared_dir, output_dir, executable, config_path, *, resume=False, seeds=None):
     prepared_dir, output_dir = Path(prepared_dir).resolve(), Path(output_dir).resolve()
     executable, config_path = Path(executable).resolve(), Path(config_path).resolve()
     config = json.loads(config_path.read_text())
+    scheduled_seeds = list(config["seeds"] if seeds is None else seeds)
+    if not scheduled_seeds or len(set(scheduled_seeds)) != len(scheduled_seeds) or any(seed not in config["seeds"] for seed in scheduled_seeds):
+        raise ValueError("Scheduled seeds must be a nonempty unique subset of the frozen configuration")
     preparation = json.loads((prepared_dir / "preparation.json").read_text())
     version = subprocess.check_output([str(executable), "--version"], text=True).strip()
     if version != "AutoDock Vina v1.2.7":
@@ -101,7 +104,7 @@ def dock(prepared_dir, output_dir, executable, config_path, *, resume=False):
     previous = {(r["receptor"], r["seed"]): r for r in old}
     if len(previous) != len(old):
         raise ValueError("Duplicate run identities in existing manifest")
-    expected = {(r["id"], seed) for r in preparation["receptors"] for seed in config["seeds"]}
+    expected = {(r["id"], seed) for r in preparation["receptors"] for seed in scheduled_seeds}
     if set(previous) - expected:
         raise ValueError("Existing manifest contains runs outside this frozen configuration")
     ligand = prepared_dir / preparation.get("ligand_file", "galactose.pdbqt")
@@ -118,7 +121,7 @@ def dock(prepared_dir, output_dir, executable, config_path, *, resume=False):
         receptor_path = prepared_dir / receptor["pdbqt_file"]
         fingerprint = {**common, "receptor_sha256": sha256(receptor_path),
                        "receptor_pdb_sha256": sha256(prepared_dir / receptor["pdb_file"])}
-        for seed in config["seeds"]:
+        for seed in scheduled_seeds:
             identity = (receptor["id"], seed)
             name = f"{receptor['id']}_{seed}"
             pose_path, log_path = output_dir / (name + ".pdbqt"), output_dir / (name + ".log")
@@ -146,6 +149,8 @@ def dock(prepared_dir, output_dir, executable, config_path, *, resume=False):
                    "python": platform.python_version(), "vina_version": version}
             if prior:
                 row["previous_attempts"] = prior.get("previous_attempts", []) + [{k: v for k, v in prior.items() if k != "previous_attempts"}]
+            if seeds is not None:
+                row["execution_seed_subset"] = scheduled_seeds
             runs.append(row)
             write_json(manifest_path, runs + [r for k, r in previous.items() if k not in {(x["receptor"], x["seed"]) for x in runs}])
             start, usage = time.perf_counter(), resource.getrusage(resource.RUSAGE_CHILDREN)
@@ -260,4 +265,18 @@ def analyze(prepared_dir, output_dir):
             writer.writerows(rows)
     if full is not None:
         full.close()
+    write_json(output_dir / "analysis.json", {
+        "schema_version": 1,
+        "engine_sha256": sha256(Path(__file__)),
+        "metrics_sha256": sha256(Path(__file__).with_name("metrics.py")),
+        "run_manifest_sha256": sha256(output_dir / "runs.json"),
+        "configuration_sha256": sha256(config_path),
+        "reference_sha256": sha256(prepared_dir / "reference.json"),
+        "summary_sha256": sha256(output_dir / "summary.json"),
+        "pose_metrics_sha256": sha256(output_dir / "pose_metrics.csv") if rows else None,
+        "coordinate_frame": "prepared receptor frame; no ligand-only superposition",
+        "contact_identity_policy": "full holo atom universe; insertion-code whitespace normalized",
+        "contact_cutoff_A": 4.0,
+        "overlap_screen_distance_A": 1.5,
+    })
     return summaries

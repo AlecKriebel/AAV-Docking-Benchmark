@@ -17,6 +17,7 @@ from aav_benchmark.external import (
     fetch_external,
     pdb_heavy_atoms,
     prepare,
+    prepare_external_receptor,
     verify_external,
 )
 
@@ -113,6 +114,66 @@ class ExternalChemistryControls(unittest.TestCase):
             attempt = json.loads((output / "preparation_attempt.json").read_text())
             self.assertEqual(attempt["status"], "failed")
             self.assertEqual(attempt["error_type"], "FileNotFoundError")
+
+    def test_native_calcium_retains_identity_coordinates_and_explicit_plus_two_charge(self):
+        from aav_benchmark.aav import _pdb_atoms
+
+        with tempfile.TemporaryDirectory() as directory:
+            raw = Path(directory) / "raw"
+            fetch_external(raw, "1PWB")
+            text = (raw / "1PWB_r_b.pdb").read_text()
+            original = pdb_heavy_atoms(text)
+            stem = Path(directory) / "prepared"
+            log = prepare_external_receptor(text, stem, case_definition("1PWB"), raw)
+            output = _pdb_atoms(stem.with_suffix(".pdbqt").read_text(), pdbqt=True)
+            heavy_keys = {key for key, atom in output.items() if not atom["hydrogen"]}
+            self.assertEqual(heavy_keys, {tuple(atom["key"]) for atom in original})
+            calcium = next(atom for atom in original if atom["element"] == "CA")
+            key = tuple(calcium["key"])
+            np.testing.assert_allclose(output[key]["coordinates"], calcium["coordinates"], atol=0.0001)
+            self.assertEqual(output[key]["element_or_type"], "Ca")
+            self.assertEqual(log["native_cofactors"][0]["formal_charge"], 2)
+            self.assertEqual(log["native_cofactors"][0]["pdbqt_charge"], 2.0)
+            self.assertEqual(log["input_heavy_atoms"], log["pdbqt_heavy_atoms"])
+            self.assertFalse(log["heavy_atom_completion"])
+
+    def test_uncurated_metal_substitution_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            raw = Path(directory) / "raw"
+            fetch_external(raw, "1PWB")
+            lines = []
+            for line in (raw / "1PWB_r_b.pdb").read_text().splitlines():
+                if line.startswith(("ATOM", "HETATM")) and line[17:20] == "CA2":
+                    line = line[:76]+"MG"+line[78:]
+                lines.append(line)
+            with self.assertRaisesRegex(ValueError, "Unexpected required-calcium"):
+                prepare_external_receptor("\n".join(lines)+"\n", Path(directory)/"prepared",
+                                          case_definition("1PWB"), raw)
+
+    def test_deposited_numbering_exposes_missing_loop_without_atom_or_bond_invention(self):
+        from aav_benchmark.aav import _pdb_atoms
+
+        with tempfile.TemporaryDirectory() as directory:
+            raw = Path(directory) / "raw"
+            fetch_external(raw, "2VUZ")
+            text = (raw / "2VUZ_r_b.pdb").read_text()
+            original = pdb_heavy_atoms(text)
+            stem = Path(directory) / "prepared"
+            log = prepare_external_receptor(text, stem, case_definition("2VUZ"), raw)
+            output = _pdb_atoms(stem.with_suffix(".pdbqt").read_text(), pdbqt=True)
+            native_keys = {tuple(atom["key"]) for atom in original}
+            self.assertEqual(native_keys, {key for key, atom in output.items() if not atom["hydrogen"]})
+            self.assertEqual(log["input_heavy_atoms"], 990)
+            self.assertEqual(log["pdbqt_heavy_atoms"], 990)
+            self.assertEqual(log["max_heavy_displacement_A"], 0.0)
+            self.assertEqual(log["receptor_numbering_audit"]["missing_author_residues"], [91])
+            self.assertIn(["A:90", "A:92"], log["topology"]["unresolved_sequence_gaps"])
+            self.assertFalse(any(set(bond["residues"]) == {"A:90", "A:92"}
+                                 for bond in log["topology"]["accepted_inter_residue_bonds"]))
+            # These are the released identities after the explicit output map,
+            # not silently renumbered receptor atoms used for pose evaluation.
+            self.assertIn(("A", 91, "", "ASN", "N"), output)
+            self.assertFalse(log["heavy_atom_completion"])
 
     def test_assay_plan_predeclares_no_pose_or_binary_endpoint(self):
         frozen = cohort()["gal3_panel_frozen_analysis"]

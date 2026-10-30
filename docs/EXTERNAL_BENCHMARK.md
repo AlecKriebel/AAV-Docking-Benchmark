@@ -28,8 +28,8 @@ atom proximity.
 | 1KJL | LacNAc, 26 heavy atoms | Ligand-stripped isolated galectin-3 carbohydrate-recognition domain |
 | 1QFO | Nominal GLC/GAL/SIA trisaccharide | Released reducing-end C1 handedness disagrees with CCD GLC; preparation fails visibly |
 | 2J1T | Lewis-Y tetrasaccharide, 46 heavy atoms | Released bound receptor; biological assembly/local density not independently certified |
-| 1PWB | Maltose, 23 heavy atoms | Required receptor calcium must be retained and supported |
-| 2VUZ | Resolved seven-residue fragment, 90 heavy atoms | Not a full atomic reference for the nonasaccharide named in the entry title; required calcium |
+| 1PWB | Maltose, 23 heavy atoms | Native calcium retained with the fixed ion model described below |
+| 2VUZ | Resolved seven-residue fragment, 90 heavy atoms | Not a full atomic reference for the nonasaccharide named in the entry title; native calcium and one unresolved protein residue |
 
 The current parser verifies an exact heavy-atom set against CCD chemistry after
 only the declared glycosidic leaving groups are removed. It checks each CCD
@@ -60,6 +60,32 @@ use `fetch_external` and `prepare`; docking and scoring use the repository's
 shared runner. Failed preparation attempts invalidate any earlier success
 manifest. `chemistry.json` preserves successful embedding and atom-map checks
 even if receptor preparation fails later.
+
+## Native calcium and unresolved sequence gaps
+
+1PWB and 2VUZ initially failed because the released receptors use `CA2:CA+2`
+ion names. The development extension retains these original identities and
+coordinates, parameterizes an isolated CCD-verified `[Ca+2]` through Meeko,
+and appends its single `Ca` atom with explicit charge +2 to the rigid receptor.
+The full original receptor heavy-atom set and coordinates are checked again.
+This is a fixed Vina ion model; it does not model specialized coordination or
+polarization and has not been validated against a calcium-dependent assay.
+
+2VUZ's prepared source also renumbers a genuine unresolved residue away:
+source GLY90 and ASN91 correspond to deposited author GLY90 and ASN92.
+`benchmarks/sources/2VUZ_receptor_numbering.json` records the exact atom-name/
+coordinate mapping for all 128 protein residues, with the deposited CIF source
+and its checksum. Restoring author numbering for Meeko preparation exposes
+the gap at author residue 91. No loop atoms or peptide bond across the gap
+are created. All 990 original receptor heavy atoms, including calcium, remain
+at their input coordinates. The output PDBQT restores the original source
+identifiers so contact evaluation uses the same atom identities. The preparation
+log declares both identity frames and the unresolved sequence gap. This case
+remains a partial-structure development diagnostic.
+
+These extensions were made during development, before docking either newly
+supported case. `benchmarks/development_preparation.json` retains the initial
+blocked preparation history beside the latest supported-case counts.
 
 ## Assay-qualified quantitative ranking diagnostic
 

@@ -11,4 +11,6 @@ jobs:
           cache: pip
       - run: python -m pip install -e '.[test]'
       - run: python -m pytest -q
+      - run: python scripts/verify_archived_results.py
+      - run: python scripts/regenerate_report.py --check
       - run: python -m aav_benchmark status

@@ -292,6 +292,53 @@ def build_ligand(raw_dir, case_id="154L", embedding_seed=20261024):
     }
 
 
+def _receptor_numbering_for_preparation(pdb_text, definition):
+    """Expose independently mapped missing residues without inventing atoms."""
+    mapping_path = definition.get("receptor_numbering_map")
+    if not mapping_path:
+        return pdb_text, {}, None
+    path = PROJECT_ROOT / mapping_path
+    if hashlib.sha256(path.read_bytes()).hexdigest() != definition["receptor_numbering_map_sha256"]:
+        raise ValueError("Receptor author-numbering map checksum mismatch")
+    mapping = json.loads(path.read_text())
+    forward, reverse = {}, {}
+    for row in mapping["residues"]:
+        source = (row["prepared_chain"], row["prepared_residue_number"], "", row["prepared_resname"])
+        author = (row["deposited_author_chain"], row["deposited_author_number"],
+                  row["deposited_insertion_code"], row["deposited_resname"])
+        if source[3] != author[3] or source in forward or author in reverse:
+            raise ValueError("Nonbijective or chemically changing receptor numbering map")
+        forward[source] = author
+        reverse[author] = source
+    observed = {tuple(atom["key"][:4]) for atom in pdb_heavy_atoms(pdb_text)}
+    if observed != set(forward):
+        raise ValueError("Receptor residues do not match the frozen author-numbering map")
+    transformed = []
+    for line in pdb_text.splitlines():
+        if line.startswith(("ATOM  ", "HETATM", "TER   ")):
+            source = (line[21:22].strip(), int(line[22:26]), line[26:27].strip(), line[17:20].strip())
+            if source in forward:
+                chain, number, insertion, residue = forward[source]
+                line = line[:17]+f"{residue:3s}"+line[20:21]+f"{chain:1s}{number:4d}{insertion or ' ':1s}"+line[27:]
+        transformed.append(line)
+    return "\n".join(transformed)+"\n", reverse, mapping
+
+
+def _restore_prepared_source_numbering(text, reverse):
+    if not reverse:
+        return text
+    result = []
+    for line in text.splitlines():
+        if line.startswith(("ATOM  ", "HETATM")):
+            author = (line[21:22].strip(), int(line[22:26]), line[26:27].strip(), line[17:20].strip())
+            if author not in reverse:
+                raise ValueError("Prepared protein atom lacks a source numbering identity")
+            chain, number, insertion, residue = reverse[author]
+            line = line[:17]+f"{residue:3s}"+line[20:21]+f"{chain:1s}{number:4d}{insertion or ' ':1s}"+line[27:]
+        result.append(line)
+    return "\n".join(result)+"\n"
+
+
 def prepare_external_receptor(pdb_text, output_stem, definition, raw_dir):
     """Keep curated calcium ions as standard fixed [Ca+2] Vina atoms.
 
@@ -333,8 +380,11 @@ def prepare_external_receptor(pdb_text, output_stem, definition, raw_dir):
             if key in ion_keys:
                 continue
         protein_lines.append(line)
-    protein_log = prepare_receptor("\n".join(protein_lines)+"\n", output_stem)
-    receptor_pdbqt = output_stem.with_suffix(".pdbqt").read_text()
+    protein_text, reverse_numbering, numbering_audit = _receptor_numbering_for_preparation(
+        "\n".join(protein_lines)+"\n", definition)
+    protein_log = prepare_receptor(protein_text, output_stem)
+    receptor_pdbqt = _restore_prepared_source_numbering(
+        output_stem.with_suffix(".pdbqt").read_text(), reverse_numbering)
     serials = [int(line[6:11]) for line in receptor_pdbqt.splitlines()
                if line.startswith(("ATOM  ", "HETATM"))]
     next_serial = max(serials) + 1
@@ -390,6 +440,10 @@ def prepare_external_receptor(pdb_text, output_stem, definition, raw_dir):
            "pdbqt_heavy_atoms": len(dock_heavy), "max_heavy_displacement_A": displacement,
            "native_cofactors": ion_logs,
            "cofactor_limitation": "Fixed +2 Vina calcium model; no specialized coordination or polarization; not assay-validated"}
+    if numbering_audit:
+        log["receptor_numbering_audit"] = numbering_audit
+        log["protein_preparation_identity_frame"] = "deposited author numbering; output PDBQT restored to upstream prepared identifiers"
+        log["unresolved_region_policy"] = "No loop atoms or cross-gap peptide bond added; existing Meeko residue templates; native heavy atoms unchanged"
     write_json(output_stem.with_name(output_stem.name+"_atom_changes.json"), log)
     return log
 

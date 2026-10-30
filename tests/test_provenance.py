@@ -1,8 +1,10 @@
 import hashlib
+import errno
+from unittest.mock import patch
 
 import pytest
 
-from aav_benchmark.provenance import fetch_verified, sha256, write_json
+from aav_benchmark.provenance import fetch_verified, sha256, write_json, write_text_atomic
 
 
 def test_existing_corrupt_source_is_preserved_and_rejected(tmp_path):
@@ -28,3 +30,13 @@ def test_json_write_rejects_nan_without_replacing_prior_manifest(tmp_path):
     with pytest.raises(ValueError):
         write_json(path, {"rmsd": float("nan")})
     assert path.read_bytes() == before
+
+
+def test_failed_report_replacement_preserves_original_and_removes_temporary(tmp_path):
+    path = tmp_path / "report.md"
+    path.write_text("prior complete report\n")
+    with patch("aav_benchmark.provenance.os.replace", side_effect=OSError(errno.ENOSPC, "Disk full")):
+        with pytest.raises(OSError):
+            write_text_atomic(path, "new report\n")
+    assert path.read_text() == "prior complete report\n"
+    assert list(tmp_path.iterdir()) == [path]

@@ -20,11 +20,10 @@ def sha256(path):
     return digest.hexdigest()
 
 
-def write_json(path, value):
-    """Replace a manifest only when a complete, valid JSON document exists."""
+def write_text_atomic(path, data):
+    """Replace a text artifact only after all bytes have been written."""
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    data = json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n"
     fd, temporary = tempfile.mkstemp(prefix=path.name + ".", dir=path.parent)
     try:
         with os.fdopen(fd, "w") as stream:
@@ -32,6 +31,12 @@ def write_json(path, value):
         os.replace(temporary, path)
     finally:
         Path(temporary).unlink(missing_ok=True)
+
+
+def write_json(path, value):
+    """Replace a manifest only when a complete, valid JSON document exists."""
+    data = json.dumps(value, indent=2, sort_keys=True, allow_nan=False) + "\n"
+    write_text_atomic(path, data)
 
 
 def fetch_verified(url, destination, expected_sha256):

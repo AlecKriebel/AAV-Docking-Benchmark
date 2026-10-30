@@ -694,7 +694,9 @@
           "expected_count": 1,
           "autodock_atom_type": "Ca"
         }
-      ]
+      ],
+      "receptor_numbering_map": "benchmarks/sources/2VUZ_receptor_numbering.json",
+      "receptor_numbering_map_sha256": "41f5741b85ded645a7a7ab11dd654f67dcc6fb10e459ea876574adf700d5dd7d"
     }
   ],
   "license_source": {

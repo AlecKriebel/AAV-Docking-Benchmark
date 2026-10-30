@@ -103,6 +103,29 @@ def test_analysis_rejects_duplicate_run_identity(fixture_files):
         engine.analyze(prepared, output)
 
 
+def test_blank_insertion_codes_match_native_contact_identities(fixture_files):
+    prepared, output, _, _ = fixture_files
+    reference_path = prepared / "reference.json"
+    reference = json.loads(reference_path.read_text())
+    reference["receptor_atom_keys"][0][2] = " "
+    write_json(reference_path, reference)
+    _run(fixture_files)
+    summary = engine.analyze(prepared, output)
+    assert all(row["top1_contact_recall"] == 1.0 for row in summary)
+    assert all(row["top1_contact_precision"] == 1.0 for row in summary)
+    assert (output / "analysis.json").is_file()
+
+
+def test_panel_cli_retains_later_cases_and_reports_any_failure(tmp_path):
+    (tmp_path / "benchmarks").mkdir()
+    write_json(tmp_path / "benchmarks/gal3_run.json", {"cases": ["first", "second"]})
+    with patch.object(engine, "dock", side_effect=[[{"status": "failed"}], [{"status": "ok"}]]) as mocked:
+        status = cli.main(["--root", str(tmp_path), "panel", "dock", "--results-root", str(tmp_path / "replay")])
+    assert status == 1
+    assert mocked.call_count == 2
+    assert mocked.call_args_list[1].args[1] == tmp_path / "replay/second"
+
+
 def test_analysis_rejects_changed_receptor_scoring_coordinates(fixture_files):
     prepared, output, _, _ = fixture_files
     _run(fixture_files)
