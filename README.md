@@ -100,5 +100,10 @@ native scoring controls, raw-data hashes and limitations. The
 checks on the same host. [Method coverage](docs/METHOD_COVERAGE.md) identifies
 the comparisons still needed for the full scientific study.
 
+Linux CI explicitly allows `--numeric-tolerance 1e-10` for derived floating-point
+rounding across CPU architectures. It still requires exact identities, counts,
+decisions and input/pose hashes, and reports the actual numerical differences.
+The default development-host verification remains byte-exact.
+
 Legacy trimmed structures and pocket outputs remain historical artifacts with
 unverified coordinate/provenance mappings. They are not blind benchmark evidence.

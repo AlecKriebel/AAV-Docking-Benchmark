@@ -16,9 +16,10 @@ from aav_benchmark.archive import restore
 from aav_benchmark.engine import analyze
 from aav_benchmark.panel import summarize_panel
 from aav_benchmark.provenance import sha256, write_json
+from aav_benchmark.reproduction import compare_tables
 
 
-def verify(root):
+def verify(root, numeric_tolerance=0.0):
     root = Path(root).resolve()
     original = root / "results/development"
     checks = []
@@ -42,25 +43,24 @@ def verify(root):
                 continue
             analyze(prepared, scratch)
             for filename in ("summary.json", "pose_metrics.csv"):
-                expected, actual = sha256(output / filename), sha256(scratch / filename)
-                if expected != actual:
-                    raise ValueError(f"Recomputed structural table differs: {output.name}/{filename}")
-                checks.append({"file": str((output / filename).relative_to(root)), "sha256": actual, "exact_recomputation": True})
+                comparison = compare_tables(output / filename, scratch / filename, numeric_tolerance)
+                checks.append({"file": str((output / filename).relative_to(root)), "sha256": sha256(output / filename), **comparison})
         summarize_panel(prepared_root, results_root, root / "benchmarks/galectin3_itc_panel.json")
         panel_name = "gal3_panel_summary.json"
-        actual, expected = sha256(results_root / panel_name), sha256(original / panel_name)
-        if actual != expected:
-            raise ValueError("Recomputed assay ranking differs from committed table")
-        checks.append({"file": "results/development/" + panel_name, "sha256": actual, "exact_recomputation": True})
+        comparison = compare_tables(original / panel_name, results_root / panel_name, numeric_tolerance)
+        checks.append({"file": "results/development/" + panel_name, "sha256": sha256(original / panel_name), **comparison})
     result = {"scope": "Exact recomputation from archived prepared inputs and raw poses; no docking rerun or independent structural-quality adjudication",
-              "all_tables_match": True, "tables": checks, "verifier_sha256": sha256(Path(__file__))}
+              "all_tables_match": True, "all_tables_exact": all(row["exact_recomputation"] for row in checks),
+              "numeric_tolerance": numeric_tolerance, "tables": checks,
+              "verifier_sha256": sha256(Path(__file__)), "comparison_code_sha256": sha256(root / "aav_benchmark/reproduction.py")}
     return result
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1])
+    parser.add_argument("--numeric-tolerance", type=float, default=0.0, help="Explicit derived-float tolerance for cross-platform verification; default requires exact bytes")
     args = parser.parse_args()
-    verification = verify(args.root)
+    verification = verify(args.root, args.numeric_tolerance)
     write_json(args.root / "results/archive_verification.json", verification)
-    print(f"Verified exact recomputation of {len(verification['tables'])} tables")
+    print(f"Verified {len(verification['tables'])} tables; all byte-exact: {verification['all_tables_exact']}; maximum numeric difference: {max(row['max_numeric_difference'] for row in verification['tables']):.3g}")
