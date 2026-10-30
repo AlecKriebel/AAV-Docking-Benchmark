@@ -1,9 +1,9 @@
 {
   "all_tables_exact": true,
   "all_tables_match": true,
-  "comparison_code_sha256": "94f9e39ff4425ff36f88c882bde47d8979ce8cbcac5a3480489249a0d1bbaff3",
+  "comparison_code_sha256": "2ce34b876a20c24a731784b21f199428cea7b25997b6cf20c13f2ac5be5c8ec5",
   "numeric_tolerance": 0.0,
-  "scope": "Exact recomputation from archived prepared inputs and raw poses; no docking rerun or independent structural-quality adjudication",
+  "scope": "Recomputation from archived prepared inputs and raw poses; explicit byte-exact/derived-float comparison policy below; no docking rerun or independent structural-quality adjudication",
   "tables": [
     {
       "exact_recomputation": true,
@@ -111,5 +111,5 @@
       "sha256": "908d962fdd081f581caded4cb894d0ce61e3d56d41c78b7b430f42df01615783"
     }
   ],
-  "verifier_sha256": "1fb10284b7ea89cad4b8e6c4ed701b1c8193e7a747f8d1c544b4480a484d5928"
+  "verifier_sha256": "bfb1fc0cee1543df0f7b3d1c322631d3d4d76573af3f5a7b78b569619ec27919"
 }

@@ -7,6 +7,13 @@ from pathlib import Path
 
 from .provenance import sha256
 
+_DERIVED_FLOAT_FIELDS = frozenset({
+    "rmsd_A", "top1_rmsd_A", "top5_min_rmsd_A", "best_returned_rmsd_A",
+    "contact_recall", "contact_precision", "top1_contact_recall", "top1_contact_precision",
+    "interface_residue_recall", "interface_residue_precision", "interface_residue_jaccard",
+    "evaluation_min_distance_A", "seed_mean_top1_score", "spearman_rho", "kendall_tau_b", "pkd",
+})
+
 
 def compare_tables(expected_path, actual_path, numeric_tolerance=0.0):
     """Byte exact by default; explicit tolerance permits only derived float noise.
@@ -25,10 +32,14 @@ def compare_tables(expected_path, actual_path, numeric_tolerance=0.0):
         raise ValueError(f"Recomputed table bytes differ: {expected_path.name}")
     differences = []
 
-    def compare(a, b):
+    def compare(a, b, field=None):
         if type(a) is not type(b):
             raise ValueError("Derived table types differ")
         if isinstance(a, float):
+            if field not in _DERIVED_FLOAT_FIELDS:
+                if a != b:
+                    raise ValueError("Copied measurement, resource or provenance value differs")
+                return
             if not math.isfinite(a) or not math.isfinite(b) or abs(a - b) > numeric_tolerance:
                 raise ValueError("Derived floating value differs beyond tolerance")
             differences.append(abs(a - b))
@@ -36,12 +47,12 @@ def compare_tables(expected_path, actual_path, numeric_tolerance=0.0):
             if a.keys() != b.keys():
                 raise ValueError("Derived table fields differ")
             for key in a:
-                compare(a[key], b[key])
+                compare(a[key], b[key], key)
         elif isinstance(a, list):
             if len(a) != len(b):
                 raise ValueError("Derived table row counts differ")
             for left, right in zip(a, b):
-                compare(left, right)
+                compare(left, right, field)
         elif a != b:
             raise ValueError("Derived table identity, count or decision differs")
 
@@ -53,20 +64,18 @@ def compare_tables(expected_path, actual_path, numeric_tolerance=0.0):
                 data = list(csv.reader(stream))
             if not data:
                 raise ValueError("Empty derived CSV")
-            result = [data[0]]
-            for row in data[1:]:
-                converted = []
-                for value in row:
-                    try:
-                        converted.append(int(value))
-                    except ValueError:
-                        try:
-                            converted.append(float(value))
-                        except ValueError:
-                            converted.append(value)
-                result.append(converted)
-            return result
-        compare(rows(expected_path), rows(actual_path))
+            if any(len(row) != len(data[0]) for row in data[1:]):
+                raise ValueError("Malformed derived CSV row width")
+            return data
+        left, right = rows(expected_path), rows(actual_path)
+        if len(left) != len(right) or left[0] != right[0]:
+            raise ValueError("Derived CSV fields or row counts differ")
+        for a, b in zip(left[1:], right[1:]):
+            for column, avalue, bvalue in zip(left[0], a, b):
+                if column in _DERIVED_FLOAT_FIELDS:
+                    compare(float(avalue), float(bvalue), column)
+                elif avalue != bvalue:
+                    raise ValueError("Derived CSV identity, count or copied value differs")
     else:
         raise ValueError("Only JSON and CSV derived tables support numeric comparison")
     return {"exact_recomputation": False, "max_numeric_difference": max(differences, default=0.0),

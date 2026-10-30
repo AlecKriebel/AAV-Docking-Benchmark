@@ -49,7 +49,7 @@ def verify(root, numeric_tolerance=0.0):
         panel_name = "gal3_panel_summary.json"
         comparison = compare_tables(original / panel_name, results_root / panel_name, numeric_tolerance)
         checks.append({"file": "results/development/" + panel_name, "sha256": sha256(original / panel_name), **comparison})
-    result = {"scope": "Exact recomputation from archived prepared inputs and raw poses; no docking rerun or independent structural-quality adjudication",
+    result = {"scope": "Recomputation from archived prepared inputs and raw poses; explicit byte-exact/derived-float comparison policy below; no docking rerun or independent structural-quality adjudication",
               "all_tables_match": True, "all_tables_exact": all(row["exact_recomputation"] for row in checks),
               "numeric_tolerance": numeric_tolerance, "tables": checks,
               "verifier_sha256": sha256(Path(__file__)), "comparison_code_sha256": sha256(root / "aav_benchmark/reproduction.py")}
