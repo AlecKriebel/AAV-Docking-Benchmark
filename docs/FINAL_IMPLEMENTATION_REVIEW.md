@@ -10,7 +10,7 @@ blind-site, assay-specificity or confirmatory evidence requirements.
 
 ## Checks performed
 
-- Ran the complete final test suite: **119 tests passed**. Controls cover
+- At the initial final-review checkpoint, **119 tests passed**. Controls cover
   strict atom maps, receptor-frame RMSD, proper rigid transformations, retained
   pose ranking, fixed holo contact denominators, failed runs, stale inputs,
   incomplete manifests, preparation archives, native scoring and report checks.
@@ -42,6 +42,29 @@ blind-site, assay-specificity or confirmatory evidence requirements.
   also passed for the final generated report. It contains **48/48 completed
   docking runs and 958 retained poses**; four native-coordinate score controls
   remain separate, and the failed 1QFO preparation remains visible.
+
+## Cross-platform verification checkpoint
+
+The subsequent Linux CI run identified a floating-point representation difference
+in the 154L per-pose CSV; its JSON summary still reproduced exactly. The default
+verifier continues to require exact file bytes. Linux CI now explicitly permits
+an absolute tolerance of `1e-10` only for a named whitelist of calculated floating
+metrics. CSV identity/count columns and copied values remain exact strings;
+JSON booleans, integers, types, shapes, copied assay measurements, resource
+records and raw scores remain exact. Input and pose checksums are unchanged.
+
+Review caught and corrected an initial generic numeric coercion that could have
+treated numeric-looking identities or copied floats as tolerant metrics. New
+controls cover those cases. Independent local validation after that correction
+passed **127 tests**, and all **15 tables remain byte-exact locally**, with a
+maximum numeric difference of zero under the default verifier.
+
+Linux CI for commit `d530f10` (run `40999522183`) also passed: 127 tests, all
+15 tables within the explicit policy, and the generated report current. Its
+reported maximum absolute derived-field difference was **4.44 × 10⁻¹⁶**. The
+verification record distinguishes byte-exact files from tolerant comparisons
+and records actual differences. This numerical portability correction changes
+neither scientific inputs/search settings nor outcome decisions or claims.
 
 ## Completed 2VUZ execution review
 
