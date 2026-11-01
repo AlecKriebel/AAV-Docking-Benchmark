@@ -35,7 +35,7 @@ Recompute the new results from archived bytes without installing predictors:
 
 ```sh
 python scripts/verify_site_predictions.py --output results/site_discovery/prediction_verification.json --check
-python scripts/verify_site_experiment.py --numeric-tolerance 1e-10
+python scripts/verify_site_experiment.py --numeric-tolerance 1e-10 --surface-area-tolerance 1e-6
 python scripts/regenerate_site_report.py --check
 python scripts/regenerate_specificity_report.py --check
 ```
@@ -140,6 +140,11 @@ Linux CI explicitly allows `--numeric-tolerance 1e-10` for derived floating-poin
 rounding across CPU architectures. It still requires exact identities, counts,
 decisions and input/pose hashes, and reports the actual numerical differences.
 The default development-host verification remains byte-exact.
+
+Site replay has a separate explicit 0.000001 Å² allowance for accumulated
+surface-area totals on Linux. This addresses an observed 0.00000004 Å²
+cross-platform difference in a roughly 859,673 Å² total. It does not relax
+coordinates, distances, candidate identities, scores or success decisions.
 
 Legacy trimmed structures and pocket outputs remain historical artifacts with
 unverified coordinate/provenance mappings. They are not blind benchmark evidence.

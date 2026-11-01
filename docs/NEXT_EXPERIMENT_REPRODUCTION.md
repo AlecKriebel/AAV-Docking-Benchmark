@@ -14,7 +14,7 @@ python3.11 -m venv .venv
 .venv/bin/python -m pip install -e '.[test]'
 .venv/bin/python -m pytest -q
 .venv/bin/python scripts/verify_site_predictions.py --output results/site_discovery/prediction_verification.json --check
-.venv/bin/python scripts/verify_site_experiment.py --numeric-tolerance 1e-10
+.venv/bin/python scripts/verify_site_experiment.py --numeric-tolerance 1e-10 --surface-area-tolerance 1e-6
 .venv/bin/python scripts/regenerate_site_report.py --check
 .venv/bin/python scripts/regenerate_specificity_report.py --prepared-root results/gal9_specificity --check
 ```
@@ -36,6 +36,14 @@ coordinate, map and receipt bytes are verified after relocation; the verificatio
 commands do not attempt to open those historical paths. Publication-source
 checksums are declarations from the source audit, rather than a claim that all
 publication bytes have been redistributed and reverified locally.
+
+The default site replay requires exact values. The explicit cross-platform
+flags above allow 1e-10 for named derived geometry values and, separately,
+1e-6 Å² only for the accumulated probe-exposed surface-area total. Linux
+showed a 4.05e-8 Å² accumulation difference in the approximately 859,673 Å²
+capsid area. Coordinates, scores, ranks, counts, identities and success
+decisions retain their stricter checks; the verification records the actual
+per-field differences.
 
 ## Execute the site workflows again
 

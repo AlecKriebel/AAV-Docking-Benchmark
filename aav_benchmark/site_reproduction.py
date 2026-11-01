@@ -30,26 +30,37 @@ _METRIC_FLOAT_FIELDS = frozenset({
     "top5_common_union_interface_recall", "top5_method_union_interface_recall",
 })
 _SURFACE_FLOAT_FIELDS = frozenset({
-    "center_A", "footprint_max_atom_distance_A", "estimated_probe_exposed_surface_area_A2",
+    "center_A", "footprint_max_atom_distance_A",
 })
+_SURFACE_AREA_FIELD = "estimated_probe_exposed_surface_area_A2"
 _SYMMETRY_FLOAT_FIELDS = frozenset({
     "rotation", "translation", "fit_CA_rmsd_A", "chain_proposal_whole_capsid_max_A",
     "whole_capsid_max_CA_displacement_A", "whole_capsid_refinement_CA_rmsd_A",
 })
 
 
-def compare_site_values(expected, actual, *, numeric_tolerance=0.0,
+def _validate_tolerances(numeric_tolerance, surface_area_tolerance):
+    if (isinstance(numeric_tolerance, bool) or not math.isfinite(numeric_tolerance)
+            or not 0 <= numeric_tolerance <= 1e-8):
+        raise ValueError("Numeric tolerance must be finite and between 0 and 1e-8")
+    if (isinstance(surface_area_tolerance, bool) or not math.isfinite(surface_area_tolerance)
+            or not 0 <= surface_area_tolerance <= 1e-6):
+        raise ValueError("Surface area tolerance must be finite and between 0 and 1e-6 square Angstroms")
+
+
+def compare_site_values(expected, actual, *, numeric_tolerance=0.0, surface_area_tolerance=0.0,
                         derived_fields=_METRIC_FLOAT_FIELDS):
     """Compare JSON values, limiting tolerance to explicitly named derived fields.
 
     Shapes, types, discrete decisions, ranks, counts, residue/atom identities,
     copied coordinates, scores and provenance always require exact equality.
     Matrix/list entries inherit the field name. Nonfinite values are rejected.
+    Surface area has a separate explicit tolerance in square Angstroms, applied
+    only to the derived accumulated area field, never to distances or centers.
     """
-    if (isinstance(numeric_tolerance, bool) or not math.isfinite(numeric_tolerance)
-            or not 0 <= numeric_tolerance <= 1e-8):
-        raise ValueError("Numeric tolerance must be finite and between 0 and 1e-8")
+    _validate_tolerances(numeric_tolerance, surface_area_tolerance)
     maximum = 0.0
+    differences_by_field = {}
 
     def compare(left, right, field=None, path="root"):
         nonlocal maximum
@@ -59,10 +70,13 @@ def compare_site_values(expected, actual, *, numeric_tolerance=0.0,
             if not math.isfinite(left) or not math.isfinite(right):
                 raise ValueError(f"Nonfinite site replay value at {path}")
             difference = abs(left - right)
-            permitted = numeric_tolerance if field in derived_fields else 0.0
+            permitted = (surface_area_tolerance if field == _SURFACE_AREA_FIELD
+                         else numeric_tolerance if field in derived_fields else 0.0)
             if difference > permitted:
                 raise ValueError(f"Site replay floating value differs at {path}: {difference:g}")
             maximum = max(maximum, difference)
+            field_name = field if field is not None else "<root>"
+            differences_by_field[field_name] = max(differences_by_field.get(field_name, 0.0), difference)
         elif isinstance(left, dict):
             if left.keys() != right.keys():
                 raise ValueError(f"Site replay fields differ at {path}")
@@ -77,7 +91,16 @@ def compare_site_values(expected, actual, *, numeric_tolerance=0.0,
             raise ValueError(f"Site replay identity, count, decision or copied value differs at {path}")
 
     compare(expected, actual)
-    return {"exact_recomputation": maximum == 0.0, "max_numeric_difference": maximum}
+    return {"exact_recomputation": maximum == 0.0, "max_numeric_difference": maximum,
+            "max_numeric_difference_by_field": dict(sorted(differences_by_field.items()))}
+
+
+def _field_maxima(checks):
+    maxima = {}
+    for check in checks:
+        for field, difference in check["max_numeric_difference_by_field"].items():
+            maxima[field] = max(maxima.get(field, 0.0), difference)
+    return dict(sorted(maxima.items()))
 
 
 def _safe_relative(value):
@@ -146,7 +169,7 @@ def restore_truth_sources(root, destination):
     return receipt
 
 
-def _verify_surface(root, name, receptor, configuration, tolerance):
+def _verify_surface(root, name, receptor, configuration, tolerance, surface_area_tolerance=0.0):
     directory = root / "results/site_discovery" / name
     record_path = directory / "random_surface_v2/result.json"
     record = json.loads(record_path.read_text())
@@ -189,10 +212,11 @@ def _verify_surface(root, name, receptor, configuration, tolerance):
         points_per_atom=baseline["points_per_atom"], probe_radius_A=baseline["probe_radius_A"])
     if record.get("exposed_surface_points") != geometry.exposed_point_count:
         raise ValueError("Surface baseline exposed-point denominator differs")
-    compare_site_values(
+    area_check = compare_site_values(
         {"estimated_probe_exposed_surface_area_A2": record["estimated_surface_area_A2"]},
         {"estimated_probe_exposed_surface_area_A2": geometry.estimated_surface_area_A2},
-        numeric_tolerance=tolerance, derived_fields=_SURFACE_FLOAT_FIELDS)
+        numeric_tolerance=tolerance, surface_area_tolerance=surface_area_tolerance,
+        derived_fields=_SURFACE_FLOAT_FIELDS)
     checks = []
     for trial in trials:
         recomputed = sample_surface_patches(
@@ -202,15 +226,19 @@ def _verify_surface(root, name, receptor, configuration, tolerance):
         # JSON serialization converts tuple residue IDs to lists in the archive.
         recomputed = json.loads(json.dumps(recomputed, allow_nan=False))
         checks.append(compare_site_values(trial, recomputed, numeric_tolerance=tolerance,
+                                          surface_area_tolerance=surface_area_tolerance,
                                           derived_fields=_SURFACE_FLOAT_FIELDS))
     return {"condition_id": name, "replicates_resampled": len(checks),
             "record_sha256": sha256(record_path), "source_symmetry_recomputed": symmetry_check,
+            "surface_area_recomputation": area_check,
             "all_replicates_exact": all(check["exact_recomputation"] for check in checks),
-            "max_numeric_difference": max(check["max_numeric_difference"] for check in checks)}
+            "max_numeric_difference": max(check["max_numeric_difference"] for check in [area_check, *checks]),
+            "max_numeric_difference_by_field": _field_maxima([area_check, *checks])}
 
 
-def verify_site_experiment(root, *, numeric_tolerance=0.0):
+def verify_site_experiment(root, *, numeric_tolerance=0.0, surface_area_tolerance=0.0):
     """Verify complete native-tool-free replay in temporary working directories."""
+    _validate_tolerances(numeric_tolerance, surface_area_tolerance)
     root = Path(root).resolve()
     original = root / "results/site_discovery"
     expected_path = original / "evaluation.json"
@@ -230,7 +258,7 @@ def verify_site_experiment(root, *, numeric_tolerance=0.0):
             name = case["condition_id"]
             restore_site_inputs(root, name, "original", inputs / name)
             surface_checks.append(_verify_surface(root, name, inputs / name / "receptor.cif",
-                                                   configuration, numeric_tolerance))
+                                                   configuration, numeric_tolerance, surface_area_tolerance))
         actual = evaluate_experiment(root, input_root=inputs, output_root=outputs, raw_root=raw)
         generated = set()
         for case in configuration["cases"]:
@@ -265,14 +293,18 @@ def verify_site_experiment(root, *, numeric_tolerance=0.0):
         actual["source_sha256"] = expected["source_sha256"]
         table_checks.append({"file": "results/site_discovery/evaluation.json", **compare_site_values(
             expected, actual, numeric_tolerance=numeric_tolerance)})
-    return {"schema_version": 1, "status": "verified", "scientific_predictors_executed": False,
+    return {"schema_version": 2, "status": "verified", "scientific_predictors_executed": False,
             "network_used": False, "existing_raw_or_prepared_inputs_used": False,
             "numeric_tolerance": numeric_tolerance,
-            "comparison_policy": "Explicit derived geometry floats only; copied coordinates, scores, provenance, ranks, counts, decisions and shapes are exact. Original and replay artifact hashes checked independently before semantic comparison.",
+            "surface_area_tolerance_A2": surface_area_tolerance,
+            "surface_area_tolerance_field": _SURFACE_AREA_FIELD,
+            "comparison_policy": "Explicit derived geometry floats only; a separate square-Angstrom tolerance applies exclusively to accumulated estimated_probe_exposed_surface_area_A2. Copied coordinates, scores, provenance, ranks, counts, decisions and shapes are exact. Original and replay artifact hashes checked independently before semantic comparison.",
             "eligible_conditions": len(configuration["cases"]), "native_truth_sources": truth_sources,
             "predictor_archives": {key: prediction_check[key] for key in (
                 "verified_corrected_method_conditions", "verified_initial_CIF_reader_failures",
                 "corrected_completed_conditions", "corrected_workflow_failures")},
             "surface_nulls": surface_checks, "tables": table_checks,
+            "surface_max_numeric_difference_by_field": _field_maxima(surface_checks),
+            "table_max_numeric_difference_by_field": _field_maxima(table_checks),
             "all_tables_exact": all(check["exact_recomputation"] for check in table_checks),
             "source_evaluation_sha256": sha256(expected_path), "verifier_sha256": sha256(Path(__file__))}

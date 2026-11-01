@@ -40,6 +40,47 @@ def test_tolerance_inherits_matrix_field_and_rejects_types_shapes_and_nonfinite_
             compare_site_values(original, original, numeric_tolerance=tolerance)
 
 
+def test_accumulated_area_roundoff_requires_its_separate_explicit_unit_tolerance():
+    # Observed Linux/macOS BLAS accumulation difference: ~4e-8 A^2 in a
+    # ~860000 A^2 sum. It is a scalar diagnostic, independent of patch centers.
+    field = "estimated_probe_exposed_surface_area_A2"
+    original = {"sampling": {field: 859673.125}, "center_A": [1.0, 2.0, 3.0],
+                "score": -7.5, "rank": 1, "top1_success_4A": True}
+    rounded = {**original, "sampling": {field: 859673.125 + 4.05e-8}}
+    with pytest.raises(ValueError, match="floating value"):
+        compare_site_values(original, rounded, numeric_tolerance=1e-10)
+    # Even including the area in an ordinary geometry whitelist cannot grant
+    # it the numeric tolerance; only the separate area argument permits drift.
+    with pytest.raises(ValueError, match="floating value"):
+        compare_site_values(original, rounded, numeric_tolerance=1e-8,
+                            derived_fields={field, "center_A"})
+    check = compare_site_values(original, rounded, numeric_tolerance=1e-10,
+                                surface_area_tolerance=1e-6)
+    assert check["exact_recomputation"] is False
+    assert check["max_numeric_difference_by_field"][field] == pytest.approx(4.05e-8, abs=1e-10)
+    assert check["max_numeric_difference_by_field"]["score"] == 0.0
+    assert check["max_numeric_difference_by_field"]["center_A"] == 0.0
+
+
+def test_area_tolerance_cannot_relax_geometry_copied_values_or_large_area_changes():
+    field = "estimated_probe_exposed_surface_area_A2"
+    original = {field: 859673.125, "center_A": [1.0, 2.0, 3.0],
+                "score": -7.5, "rank": 1, "top1_success_4A": True}
+    for changed in ({**original, field: original[field] + 2e-6},
+                    {**original, "center_A": [1.0 + 4e-8, 2.0, 3.0]},
+                    {**original, "score": -7.5 + 1e-12},
+                    {**original, "rank": 2}, {**original, "top1_success_4A": False}):
+        with pytest.raises(ValueError):
+            compare_site_values(original, changed, numeric_tolerance=1e-10,
+                                surface_area_tolerance=1e-6, derived_fields={"center_A"})
+    with pytest.raises(ValueError):
+        compare_site_values({"some_other_area_A2": 1.0}, {"some_other_area_A2": 1.0 + 4e-8},
+                            surface_area_tolerance=1e-6)
+    for tolerance in (-1.0, float("inf"), float("nan"), True, 1.00001e-6):
+        with pytest.raises(ValueError, match="Surface area tolerance"):
+            compare_site_values(original, original, surface_area_tolerance=tolerance)
+
+
 def _offline_fixture(root):
     benchmarks = root / "benchmarks"
     benchmarks.mkdir()
