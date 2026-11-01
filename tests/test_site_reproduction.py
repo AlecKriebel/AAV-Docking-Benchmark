@@ -41,7 +41,7 @@ def test_tolerance_inherits_matrix_field_and_rejects_types_shapes_and_nonfinite_
 
 
 def test_accumulated_area_roundoff_requires_its_separate_explicit_unit_tolerance():
-    # Observed Linux/macOS BLAS accumulation difference: ~4e-8 A^2 in a
+    # Observed Linux/macOS floating-point accumulation difference: ~4e-8 A^2 in a
     # ~860000 A^2 sum. It is a scalar diagnostic, independent of patch centers.
     field = "estimated_probe_exposed_surface_area_A2"
     original = {"sampling": {field: 859673.125}, "center_A": [1.0, 2.0, 3.0],
@@ -52,7 +52,8 @@ def test_accumulated_area_roundoff_requires_its_separate_explicit_unit_tolerance
     # Even including the area in an ordinary geometry whitelist cannot grant
     # it the numeric tolerance; only the separate area argument permits drift.
     with pytest.raises(ValueError, match="floating value"):
-        compare_site_values(original, rounded, numeric_tolerance=1e-8,
+        compare_site_values(original, {**original, "sampling": {field: 859673.125 + 5e-9}},
+                            numeric_tolerance=1e-8,
                             derived_fields={field, "center_A"})
     check = compare_site_values(original, rounded, numeric_tolerance=1e-10,
                                 surface_area_tolerance=1e-6)
