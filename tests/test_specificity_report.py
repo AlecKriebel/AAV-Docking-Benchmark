@@ -242,6 +242,48 @@ class SpecificityReportEvidence(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "archive bytes changed"):
             generate_specificity_report(self.root)
 
+    def test_explicit_float_tolerance_accepts_only_small_derived_correlation_noise(self):
+        import contextlib
+        import io
+        paths = write_specificity_report(self.root)
+        original = json.loads(paths[0].read_text())
+        original["metrics"]["positive_only_quantitative_association"]["contexts"][0]["spearman_rho"] += 1e-12
+        save(paths[0], original)
+        with self.assertRaisesRegex(ValueError, "first difference: .*spearman_rho"):
+            write_specificity_report(self.root, check=True)
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            self.assertEqual(paths, write_specificity_report(self.root, check=True, numeric_tolerance=1e-10))
+        self.assertIn("maximum difference", output.getvalue())
+        self.assertIn("explicit tolerance 1e-10", output.getvalue())
+
+    def test_float_tolerance_rejects_copied_data_counts_hashes_large_drift_and_markdown(self):
+        paths = write_specificity_report(self.root)
+        original = paths[0].read_text()
+        changes = [
+            lambda x: x["compounds"][0].update(kd_uM=x["compounds"][0]["kd_uM"] + 1),
+            lambda x: x["runs"][0].update(top1_score_kcal_mol=x["runs"][0]["top1_score_kcal_mol"] + 1e-12),
+            lambda x: x["denominator"].update(successful_runs=35),
+            lambda x: x["runs"][0].update(pose_sha256="0" * 64),
+            lambda x: x["metrics"]["positive_only_quantitative_association"]["contexts"][0].update(spearman_rho=.12345),
+        ]
+        for change in changes:
+            with self.subTest(change=change):
+                document = json.loads(original)
+                change(document)
+                save(paths[0], document)
+                with self.assertRaisesRegex(ValueError, "stale"):
+                    write_specificity_report(self.root, check=True, numeric_tolerance=1e-10)
+        paths[0].write_text(original)
+        paths[1].write_text(paths[1].read_text() + "changed\n")
+        with self.assertRaisesRegex(ValueError, "stale"):
+            write_specificity_report(self.root, check=True, numeric_tolerance=1e-10)
+
+    def test_float_tolerance_must_be_explicit_finite_and_bounded(self):
+        for tolerance in (-1., float("nan"), float("inf"), True, 1.1e-8):
+            with self.subTest(tolerance=tolerance), self.assertRaisesRegex(ValueError, "Numeric tolerance"):
+                write_specificity_report(self.root, check=True, numeric_tolerance=tolerance)
+
 
 if __name__ == "__main__":
     unittest.main()

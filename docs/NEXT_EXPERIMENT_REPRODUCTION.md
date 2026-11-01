@@ -16,7 +16,7 @@ python3.11 -m venv .venv
 .venv/bin/python scripts/verify_site_predictions.py --output results/site_discovery/prediction_verification.json --check
 .venv/bin/python scripts/verify_site_experiment.py --numeric-tolerance 1e-10 --surface-area-tolerance 1e-6
 .venv/bin/python scripts/regenerate_site_report.py --check
-.venv/bin/python scripts/regenerate_specificity_report.py --prepared-root results/gal9_specificity --check
+.venv/bin/python scripts/regenerate_specificity_report.py --prepared-root results/gal9_specificity --check --numeric-tolerance 1e-10
 ```
 
 The site prediction verifier restores the archived raw predictor files and both
@@ -44,6 +44,10 @@ showed a 4.05e-8 Å² accumulation difference in the approximately 859,673 Å²
 capsid area. Coordinates, scores, ranks, counts, identities and success
 decisions retain their stricter checks; the verification records the actual
 per-field differences.
+
+Specificity JSON checking can also explicitly allow 1e-10 only for the existing
+derived-correlation and pKD fields. Raw energies, source measurements, labels,
+counts, graphs and hashes remain exact; the Markdown report remains byte-exact.
 
 ## Execute the site workflows again
 

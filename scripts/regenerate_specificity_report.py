@@ -16,11 +16,13 @@ def main():
     parser.add_argument("--summary-output", type=Path)
     parser.add_argument("--markdown-output", type=Path)
     parser.add_argument("--check", action="store_true", help="fail if either checked-in output is stale")
+    parser.add_argument("--numeric-tolerance", type=float, default=0.0,
+                        help="explicit derived-float tolerance for JSON checks; Markdown remains exact")
     args = parser.parse_args()
     try:
         paths = write_specificity_report(args.root, prepared_root=args.prepared_root, results_root=args.results_root,
                                          summary_output=args.summary_output, markdown_output=args.markdown_output,
-                                         check=args.check)
+                                         check=args.check, numeric_tolerance=args.numeric_tolerance)
     except (ValueError, OSError, KeyError, TypeError) as error:
         parser.exit(1, f"Specificity report validation failed: {error}\n")
     print(("Verified " if args.check else "Wrote ") + ", ".join(str(path) for path in paths))

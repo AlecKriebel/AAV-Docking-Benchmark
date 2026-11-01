@@ -37,7 +37,7 @@ Recompute the new results from archived bytes without installing predictors:
 python scripts/verify_site_predictions.py --output results/site_discovery/prediction_verification.json --check
 python scripts/verify_site_experiment.py --numeric-tolerance 1e-10 --surface-area-tolerance 1e-6
 python scripts/regenerate_site_report.py --check
-python scripts/regenerate_specificity_report.py --check
+python scripts/regenerate_specificity_report.py --check --numeric-tolerance 1e-10
 ```
 
 The site verifier restores native sources offline, reparses all 27 predictor

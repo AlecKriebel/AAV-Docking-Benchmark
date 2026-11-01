@@ -19,6 +19,7 @@ import tempfile
 
 from .engine import read_poses
 from .provenance import sha256, write_text_atomic
+from .reproduction import compare_tables
 from .specificity import _load_panel, summarize_specificity_scores
 
 
@@ -407,9 +408,41 @@ def render_specificity_markdown(summary, panel):
     return "\n".join(text)
 
 
+def _first_difference(left, right, path="root"):
+    """Describe a difference for diagnostics; comparison policy lives elsewhere."""
+    if type(left) is not type(right):
+        return f"{path}: types {type(left).__name__}/{type(right).__name__}"
+    if isinstance(left, dict):
+        if left.keys() != right.keys():
+            return f"{path}: object fields differ"
+        for key in sorted(left):
+            difference = _first_difference(left[key], right[key], f"{path}.{key}")
+            if difference:
+                return difference
+    elif isinstance(left, list):
+        if len(left) != len(right):
+            return f"{path}: lengths {len(left)}/{len(right)}"
+        for index, (a, b) in enumerate(zip(left, right)):
+            difference = _first_difference(a, b, f"{path}[{index}]")
+            if difference:
+                return difference
+    elif left != right:
+        if isinstance(left, float):
+            return f"{path}: {left!r}/{right!r}; absolute difference {abs(left - right):.17g}"
+        return f"{path}: {str(left)[:80]!r}/{str(right)[:80]!r}"
+    return None
+
+
 def write_specificity_report(root, *, prepared_root=None, results_root=None,
-                             summary_output=None, markdown_output=None, check=False):
-    """Write/check deterministic JSON and Markdown without changing docking."""
+                             summary_output=None, markdown_output=None, check=False,
+                             numeric_tolerance=0.0):
+    """Write/check JSON and Markdown; optional tolerance covers derived floats only.
+
+    Raw scores, measured affinities, identities, counts and input hashes remain
+    exact. The generated Markdown is always checked byte for byte.
+    """
+    _require(not isinstance(numeric_tolerance, bool) and math.isfinite(numeric_tolerance)
+             and 0 <= numeric_tolerance <= 1e-8, "Numeric tolerance must be finite and between 0 and 1e-8")
     root = Path(root).resolve()
     summary, markdown = generate_specificity_report(root, prepared_root=prepared_root, results_root=results_root)
     summary_path = Path(summary_output) if summary_output else root / "results/gal9_specificity/summary.json"
@@ -418,7 +451,24 @@ def write_specificity_report(root, *, prepared_root=None, results_root=None,
                (markdown_path, markdown)]
     for path, content in outputs:
         if check:
-            _require(path.is_file() and path.read_text() == content, f"Specificity report is stale: {path}")
+            _require(path.is_file(), f"Specificity report is stale: {path}")
+            if path == summary_path:
+                with tempfile.TemporaryDirectory() as temporary:
+                    regenerated = Path(temporary) / "summary.json"
+                    regenerated.write_text(content)
+                    try:
+                        comparison = compare_tables(path, regenerated, numeric_tolerance)
+                    except ValueError as error:
+                        try:
+                            difference = _first_difference(json.loads(path.read_text()), summary)
+                        except (ValueError, TypeError):
+                            difference = "checked-in JSON cannot be parsed"
+                        raise ValueError(f"Specificity report is stale: {path}; {error}; first difference: {difference}") from error
+                if not comparison["exact_recomputation"]:
+                    print(f"Specificity JSON derived-float comparison: maximum difference "
+                          f"{comparison['max_numeric_difference']:.17g}; explicit tolerance {numeric_tolerance:g}")
+            else:
+                _require(path.read_text() == content, f"Specificity report is stale: {path}")
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
             write_text_atomic(path, content)
