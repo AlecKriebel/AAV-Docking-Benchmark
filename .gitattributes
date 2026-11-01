@@ -3,5 +3,12 @@ tests/fixtures/external/* -text -whitespace
 results/**/*.pdbqt* -text -whitespace
 results/**/*.log* -text -whitespace
 results/**/*.csv -text -whitespace
+results/**/*.json -text
+results/site_methods/** -text -whitespace
+# Large candidate/per-replicate JSON remains byte-preserved and machine-readable;
+# review the compact evaluation index and generated reports in ordinary diffs.
+results/site_discovery/**/evaluation_details.json -diff
+results/site_discovery/**/p2rank/result.json -diff
+results/site_discovery/**/random_surface_v2/result.json -diff
 # GitHub can collapse generated evidence while keeping it available for review.
 results/** linguist-generated=true

@@ -5,10 +5,46 @@ and distinguish molecular recognition from favorable but incorrect interactions?
 This repository evaluates those questions separately, with explicit input
 information, structural references and assay provenance.
 
-**Status:** reproducible development diagnostics, not a completed confirmatory
-benchmark. The [protocol](PROTOCOL.md) defines the intended study;
+**Status:** executed development benchmarks for pose diagnostics, blind site
+localization and assay-backed specificity. The confirmatory study remains open.
+The [protocol](PROTOCOL.md) defines the intended study;
 [evidence gates](benchmarks/closure_gates.json) record the unfinished scientific
 requirements. A successful software run does not establish biological reliability.
+
+## New site and specificity evidence
+
+The [site-localization report](docs/SITE_LOCALIZATION_RESULTS.md) evaluates
+fpocket 4.2.3, P2Rank 2.5.1 and 100 area-weighted surface draws per receptor,
+using whole protein inputs without reference-derived crops or search boxes.
+Eight published-site complexes provide the primary denominator; independently
+solved AAV9 apo is a paired ninth condition. At the frozen 4 Å endpoint, primary
+Top-5 recovery is 5/8 for fpocket and 4/8 for P2Rank. Both full-capsid fpocket
+executions crashed and remain eligible failures. P2Rank's first matching AAV
+site class ranks 11 in holo and 6 in apo. Site references support localization,
+with explicit structural cautions; they do not certify atomic poses.
+
+The [Gal9C specificity report](docs/GAL9_SPECIFICITY_RESULTS.md) evaluates six
+measured binders against six source-qualified, size/charge-matched C3 epimers
+reported as no binding detected at 2 mM. All 36 frozen Vina runs completed.
+Mean Top-1 energies give AUROC 0.7222 and favor the measured binder in 5/6
+pairs; size and charge each give AUROC 0.5000. This known-site experiment
+describes one assay and chemical series. No-binding labels are categorical,
+not numerical affinity bounds, and no alternative has atomic pose truth.
+
+Recompute the new results from archived bytes without installing predictors:
+
+```sh
+python scripts/verify_site_predictions.py --output results/site_discovery/prediction_verification.json --check
+python scripts/verify_site_experiment.py --numeric-tolerance 1e-10
+python scripts/regenerate_site_report.py --check
+python scripts/regenerate_specificity_report.py --check
+```
+
+The site verifier restores native sources offline, reparses all 27 predictor
+attempts, resamples all 900 surface draws and recomputes geometry and endpoints
+in temporary folders. See [execution and replay instructions](docs/NEXT_EXPERIMENT_REPRODUCTION.md),
+[reference audit](docs/SITE_REFERENCE_AUDIT.md) and
+[independent review](docs/NEXT_PR_INDEPENDENT_REVIEW.md).
 
 ## Reproduce the AAV9 diagnostic
 

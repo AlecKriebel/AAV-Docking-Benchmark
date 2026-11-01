@@ -1,51 +1,71 @@
 {
-  "schema_version": 1,
-  "assessment_date": "2026-10-29",
-  "scientific_purpose_complete": false,
-  "gates": [
-    {
-      "id": "reference_quality",
-      "status": "pending",
-      "requirement": "Independent assembly, chemical graph, atom map and local structural reference checks for all eligible cases"
-    },
-    {
-      "id": "development_validation",
-      "status": "in_progress",
-      "requirement": "Analytic metric controls plus AAV9 and six unrelated nonviral development cases, including linked glycans",
-      "evidence": "Analytic controls and AAV9 plus six supported external complexes execute; 1QFO failure retained. 1PWB and 2VUZ share a broad C-type lectin fold, so six unrelated nonviral families are not established."
-    },
-    {
-      "id": "confirmatory_eligibility",
-      "status": "pending",
-      "requirement": "Frozen eligible families, leakage audit, precision target, independent tested specificity labels"
-    },
-    {
-      "id": "confirmatory_execution",
-      "status": "pending",
-      "requirement": "Paired information, conformation and assembly comparisons, failure denominators, family-aware uncertainty"
-    },
-    {
-      "id": "independent_reproduction",
-      "status": "in_progress",
-      "requirement": "Independent end-to-end replay from archived sources and raw outputs",
-      "evidence": "Separate parser and actual one-seed replay, clean-environment source-to-12-run replay, and all-table archive recomputation pass on the same host. Cross-platform/final scientific reference adjudication remains outside these checks."
-    }
-  ],
-  "interpretation": "Development oracle redocking can validate implementation. It cannot establish blind site recovery, molecular specificity, or universal docking reliability.",
+  "assessment_date": "2026-11-01",
   "completed_milestone": {
     "description": "Executed and reproducible development diagnostics; original scientific purpose remains incomplete",
-    "primary_completed_runs": 48,
-    "retained_poses": 958,
-    "external_eligible_preparations": 7,
-    "external_successful_preparations": 6,
-    "external_chemical_reference_failures": 1,
-    "exactly_recomputed_tables": 15,
     "evidence": [
       "docs/DEVELOPMENT_RESULTS.md",
       "docs/FINAL_IMPLEMENTATION_REVIEW.md",
       "docs/INDEPENDENT_REPRODUCTION.md",
       "docs/CLEAN_ENVIRONMENT_REPLAY.md",
       "results/archive_verification.json"
-    ]
-  }
+    ],
+    "exactly_recomputed_tables": 15,
+    "external_chemical_reference_failures": 1,
+    "external_eligible_preparations": 7,
+    "external_successful_preparations": 6,
+    "primary_completed_runs": 48,
+    "retained_poses": 958
+  },
+  "gates": [
+    {
+      "evidence": "All eight site references audited with assembly/graph/map/local quality cautions; accepted for descriptive site localization only. No new atomic-pose reference or held-out confirmatory reference qualification earned.",
+      "id": "reference_quality",
+      "requirement": "Independent assembly, chemical graph, atom map and local structural reference checks for all eligible cases",
+      "status": "in_progress"
+    },
+    {
+      "evidence": "Analytic controls and AAV9 plus six supported external complexes execute; 1QFO failure retained. 1PWB and 2VUZ share a broad C-type lectin fold, so six unrelated nonviral families are not established.",
+      "id": "development_validation",
+      "requirement": "Analytic metric controls plus AAV9 and six unrelated nonviral development cases, including linked glycans",
+      "status": "in_progress"
+    },
+    {
+      "evidence": "One source-qualified Gal9C assay with six measured/NB epimer pairs frozen and executed. Untouched family/chemical splits, learned-method overlap and precision targets remain pending.",
+      "id": "confirmatory_eligibility",
+      "requirement": "Frozen eligible families, leakage audit, precision target, independent tested specificity labels",
+      "status": "pending"
+    },
+    {
+      "evidence": "Whole-protein blind site localization completed on eight complexes plus paired AAV apo with two predictors and surface nulls. One known-site assay-specific scoring arm completed. Held-out family inference and blind-site docking pose recovery remain pending.",
+      "id": "confirmatory_execution",
+      "requirement": "Paired information, conformation and assembly comparisons, failure denominators, family-aware uncertainty",
+      "status": "in_progress"
+    },
+    {
+      "evidence": "Original archived pose tables reproduce in Linux CI. New 27 predictor attempts have raw archive reparse verification, 900 surface draws have portable source replay, and all 36 assay scores have independent arithmetic/stereochemical review. These establish implementation reproducibility, not independent biological confirmation.",
+      "id": "independent_reproduction",
+      "requirement": "Independent end-to-end replay from archived sources and raw outputs",
+      "status": "in_progress"
+    }
+  ],
+  "interpretation": "Separate evidence now supports descriptive known-site pose diagnostics, whole-protein site localization and one matched-epimer assay ranking experiment. Scientific scope remains development-only; held-out-family reliability and universally accurate docking remain unestablished.",
+  "new_completed_milestone": {
+    "description": "Whole-protein site localization and source-qualified matched-epimer specificity",
+    "evidence": [
+      "docs/SITE_LOCALIZATION_RESULTS.md",
+      "docs/GAL9_SPECIFICITY_RESULTS.md",
+      "docs/NEXT_PR_INDEPENDENT_REVIEW.md",
+      "results/site_discovery/prediction_verification.json"
+    ],
+    "preserved_predictor_attempts": 27,
+    "primary_site_method_conditions": 27,
+    "site_complexes": 8,
+    "site_conditions": 9,
+    "specificity_completed_runs": 36,
+    "specificity_compounds": 12,
+    "specificity_pairs": 6,
+    "surface_null_draws": 900
+  },
+  "schema_version": 1,
+  "scientific_purpose_complete": false
 }

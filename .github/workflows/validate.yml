@@ -13,4 +13,8 @@ jobs:
       - run: python -m pytest -q
       - run: python scripts/verify_archived_results.py --numeric-tolerance 1e-10
       - run: python scripts/regenerate_report.py --check
+      - run: python scripts/verify_site_predictions.py --output results/site_discovery/prediction_verification.json --check
+      - run: python scripts/verify_site_experiment.py --numeric-tolerance 1e-10
+      - run: python scripts/regenerate_site_report.py --check
+      - run: python scripts/regenerate_specificity_report.py --check
       - run: python -m aav_benchmark status

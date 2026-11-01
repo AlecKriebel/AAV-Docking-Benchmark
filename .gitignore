@@ -224,6 +224,15 @@ __marimo__/
 /data/raw_clean_validation/
 /data/processed/
 /tools/vina-1.2.7
+/tools/fpocket-*/
+/tools/p2rank_*/
+/tools/jre-*/
+/tools/
+
+# Large raw predictor trees and copies are preserved in checksummed tar archives.
+/results/site_discovery/**/receptor_out/
+/results/site_discovery/**/raw/
+/results/site_discovery/**/receptor.cif
 
 # Raw scientific logs are required evidence, despite the generic Python log rule.
 !/results/**/*.log
